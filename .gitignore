@@ -1,0 +1,4 @@
+.claude
+.air.toml
+tmp/
+server/configs/config.yaml
