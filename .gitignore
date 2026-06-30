@@ -1,4 +1,5 @@
 .claude
 .air.toml
 tmp/
+.idea
 server/configs/config.yaml
