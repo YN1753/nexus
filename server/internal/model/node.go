@@ -6,9 +6,9 @@ type Node struct {
 	gorm.Model
 	Name        string `gorm:"type:varchar(64);not null;comment:节点别名"`
 	Description string `gorm:"type:varchar(256);comment:备注描述"`
-
-	Host string `gorm:"type:varchar(128);not null;index:idx_host_port,unique;comment:IP或域名"`
-	Port int    `gorm:"type:int;default:22;index:idx_host_port,unique;comment:SSH端口"`
+	UUID        string `gorm:"type:varchar(64);not null;comment:UUID"`
+	Host        string `gorm:"type:varchar(128);not null;index:idx_host_port,unique;comment:IP或域名"`
+	Port        int    `gorm:"type:int;default:22;index:idx_host_port,unique;comment:SSH端口"`
 
 	SshUser    string `gorm:"type:varchar(64);default:'root';not null;comment:SSH登录用户名"`
 	AuthType   int    `gorm:"type:tinyint;default:1;comment:认证类型: 1-密码, 2-密钥"`
