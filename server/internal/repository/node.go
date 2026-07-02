@@ -18,10 +18,18 @@ func NewNodeRepository(db *gorm.DB) NodeRepository {
 }
 
 func (repo *NodeRepository) SaveNode(node *model.Node) error {
-	return repo.DB.Create(node).Error
+	err := repo.DB.Create(node).Error
+	if err != nil {
+		return errors.New("创建节点失败" + err.Error())
+	}
+	return nil
 }
 func (repo *NodeRepository) UpdateNode(node *model.Node) error {
-	return repo.DB.Updates(node).Error
+	err := repo.DB.Updates(node).Error
+	if err != nil {
+		return errors.New("更新节点失败" + err.Error())
+	}
+	return nil
 }
 func (repo *NodeRepository) DeleteNodeById(id uint) error {
 	return repo.DB.Delete(model.Node{}, id).Error

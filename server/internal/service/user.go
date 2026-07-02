@@ -21,7 +21,7 @@ func NewUserService(repo repository.UserRepository) UserService {
 func (u *UserService) Register(user model.User) error {
 	password, err := utils.HashPassword(user.Password)
 	if err != nil {
-		return errors.New("密码加密失败")
+		return err
 	}
 	user.Password = password
 	return u.Repo.CreateUser(user)

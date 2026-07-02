@@ -1,10 +1,17 @@
 package utils
 
-import "golang.org/x/crypto/bcrypt"
+import (
+	"errors"
+
+	"golang.org/x/crypto/bcrypt"
+)
 
 func HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-	return string(bytes), err
+	if err != nil {
+		return string(bytes), errors.New("hash加密失败" + err.Error())
+	}
+	return string(bytes), nil
 }
 
 func CheckPassword(password, hash string) bool {
