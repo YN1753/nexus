@@ -25,8 +25,11 @@ func RouterInit(authHandler handler.AuthHandler, nodeHandler handler.NodeHandler
 		private.Use(middleware.JWTAuth(authHandler.JwtSecret))
 		private.GET("info", authHandler.GetInfo)
 
+		//node相关的路由
 		private.POST("node", nodeHandler.SaveNode)
 		private.POST("getNode", nodeHandler.GetNodeById)
+		private.GET("nodes", nodeHandler.GetNodes)
+		private.POST("updateNode", nodeHandler.UpdateNode)
 	}
 	return r
 }

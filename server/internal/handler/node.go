@@ -58,3 +58,28 @@ func (n *NodeHandler) GetNodeById(c *gin.Context) {
 	response.Success(c, &node)
 	return
 }
+
+func (n *NodeHandler) GetNodes(c *gin.Context) {
+	nodes, err := n.NodeService.GetNodes()
+	if err != nil {
+		response.Fail(c, 500, err.Error())
+		return
+	}
+	response.Success(c, nodes)
+	return
+}
+
+func (n *NodeHandler) UpdateNode(c *gin.Context) {
+	node := model.Node{}
+	if err := c.ShouldBindJSON(&node); err != nil {
+		response.Fail(c, 400, "json获取失败")
+		return
+	}
+	err := n.NodeService.UpdateNode(&node)
+	if err != nil {
+		response.Fail(c, 500, err.Error())
+		return
+	}
+	response.Success(c, nil)
+	return
+}
