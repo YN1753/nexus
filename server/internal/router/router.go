@@ -13,7 +13,7 @@ type Router struct {
 	JwtExpire uint
 }
 
-func RouterInit(authHandler handler.AuthHandler, nodeHandler handler.NodeHandler) *gin.Engine {
+func RouterInit(authHandler handler.AuthHandler, nodeHandler handler.NodeHandler, sshHandler handler.SSHHandler) *gin.Engine {
 	r := gin.Default()
 	public := r.Group("api/v1")
 	{
@@ -30,6 +30,9 @@ func RouterInit(authHandler handler.AuthHandler, nodeHandler handler.NodeHandler
 		private.POST("getNode", nodeHandler.GetNodeById)
 		private.GET("nodes", nodeHandler.GetNodes)
 		private.POST("updateNode", nodeHandler.UpdateNode)
+
+		// ssh相关的路由
+		private.POST("ssh/run", sshHandler.RunCommand)
 	}
 	return r
 }
