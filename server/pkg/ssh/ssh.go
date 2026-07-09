@@ -65,6 +65,13 @@ func (c *Client) RunCommand(cmd string) (string, error) {
 	return string(output), nil
 }
 
+func (c *Client) NewSession() (*gossh.Session, error) {
+	if c == nil || c.client == nil {
+		return nil, errors.New("ssh客户端未初始化")
+	}
+	return c.client.NewSession()
+}
+
 func (c *Client) Close() error {
 	if c == nil || c.client == nil {
 		return nil

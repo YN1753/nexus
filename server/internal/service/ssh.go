@@ -17,25 +17,33 @@ func NewSSHService(nodeRepo repository.NodeRepository) SSHService {
 	}
 }
 
-func (s *SSHService) RunCommand(nodeID uint, cmd string) (string, error) {
+func (s *SSHService) Connect(nodeID uint) (*pkgssh.Client, error) {
 	node, err := s.NodeRepo.FindNodeById(nodeID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if node.AuthType == 2 {
 		node.PrivateKey, err = utils.Decrypt(node.PrivateKey)
 		if err != nil {
-			return "", fmt.Errorf("解密私钥失败: %w", err)
+			return nil, fmt.Errorf("解密私钥失败: %w", err)
 		}
 	} else {
 		node.Password, err = utils.Decrypt(node.Password)
 		if err != nil {
-			return "", fmt.Errorf("解密密码失败: %w", err)
+			return nil, fmt.Errorf("解密密码失败: %w", err)
 		}
 	}
 
 	client, err := pkgssh.NewClient(*node)
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
+}
+
+func (s *SSHService) RunCommand(nodeID uint, cmd string) (string, error) {
+	client, err := s.Connect(nodeID)
 	if err != nil {
 		return "", err
 	}

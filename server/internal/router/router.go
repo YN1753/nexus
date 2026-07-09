@@ -32,7 +32,7 @@ func RouterInit(authHandler handler.AuthHandler, nodeHandler handler.NodeHandler
 		private.POST("updateNode", nodeHandler.UpdateNode)
 
 		// ssh相关的路由
-		private.POST("ssh/run", sshHandler.RunCommand)
+		private.GET("ssh/run", sshHandler.RunCommand)
 	}
 	return r
 }
