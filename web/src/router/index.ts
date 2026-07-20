@@ -21,6 +21,12 @@ const router = createRouter({
           component: () => import('@/views/NodesView.vue'),
         },
         {
+          path: 'nodes/:nodeId',
+          name: 'node-detail',
+          component: () => import('@/views/NodeDetailView.vue'),
+          props: (route) => ({ nodeId: Number(route.params.nodeId) }),
+        },
+        {
           path: 'terminal/:nodeId',
           name: 'terminal',
           component: () => import('@/views/TerminalView.vue'),
