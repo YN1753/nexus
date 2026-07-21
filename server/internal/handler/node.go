@@ -11,11 +11,13 @@ import (
 
 type NodeHandler struct {
 	NodeService service.NodeService
+	SSHService  service.SSHService
 }
 
-func NewNodeHandler(nodeService service.NodeService) NodeHandler {
+func NewNodeHandler(nodeService service.NodeService, sshService service.SSHService) NodeHandler {
 	return NodeHandler{
 		NodeService: nodeService,
+		SSHService:  sshService,
 	}
 }
 
@@ -66,6 +68,22 @@ func (n *NodeHandler) GetNodes(c *gin.Context) {
 		return
 	}
 	response.Success(c, nodes)
+	return
+}
+
+func (n *NodeHandler) GetNodeOverview(c *gin.Context) {
+	var req request.GetNodeReq
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		response.Fail(c, 400, "获取json错误")
+		return
+	}
+	overview, err := n.SSHService.GetNodeOverview(req.ID)
+	if err != nil {
+		response.Fail(c, 500, err.Error())
+		return
+	}
+	response.Success(c, overview)
 	return
 }
 

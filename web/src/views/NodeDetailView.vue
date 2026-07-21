@@ -6,15 +6,21 @@ import {
   FolderOpened,
   Monitor,
   Refresh,
-  TrendCharts,
   VideoPlay,
 } from '@element-plus/icons-vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import NodeFormDialog from '@/components/NodeFormDialog.vue'
-import { getMockNodeOverview, getNode } from '@/services/node'
-import type { NodeInfo, NodeOverview, SystemMetric } from '@/types/api'
+import { getNode, getNodeOverview } from '@/services/node'
+import type { NodeInfo, NodeOverview } from '@/types/api'
+
+interface MetricCard {
+  label: string
+  value: string
+  detail: string
+  percent?: number
+}
 
 const props = defineProps<{
   nodeId: number
@@ -31,31 +37,63 @@ const overview = ref<NodeOverview | null>(null)
 const statusText = computed(() => (node.value?.Status === 1 ? '在线' : '未知'))
 const authText = computed(() => (node.value?.AuthType === 2 ? '密钥认证' : '密码认证'))
 
+const metricCards = computed<MetricCard[]>(() => {
+  if (!overview.value) {
+    return []
+  }
+
+  return [
+    {
+      label: 'CPU',
+      value: `${overview.value.cpuPercent.toFixed(2)}%`,
+      detail: '当前 CPU 使用率',
+      percent: overview.value.cpuPercent,
+    },
+    {
+      label: 'Memory',
+      value: `${overview.value.memoryPercent.toFixed(2)}%`,
+      detail: `${overview.value.memoryUsedMB} MB / ${overview.value.memoryTotalMB} MB`,
+      percent: overview.value.memoryPercent,
+    },
+    {
+      label: 'Disk',
+      value: `${overview.value.diskPercent.toFixed(2)}%`,
+      detail: `${overview.value.diskUsed} / ${overview.value.diskTotal}`,
+      percent: overview.value.diskPercent,
+    },
+    {
+      label: 'Load',
+      value: overview.value.loadAverage || '-',
+      detail: '1m / 5m / 15m',
+    },
+  ]
+})
+
 async function loadNodeDetail() {
   loading.value = true
   try {
     const detail = await getNode({ id: props.nodeId })
     node.value = detail
-    await loadOverview(detail)
+    await loadOverview()
   } finally {
     loading.value = false
   }
 }
 
-async function loadOverview(detail: NodeInfo) {
+async function loadOverview() {
   overviewLoading.value = true
   try {
-    overview.value = await getMockNodeOverview(detail)
+    overview.value = await getNodeOverview({ id: props.nodeId })
   } finally {
     overviewLoading.value = false
   }
 }
 
-function metricStatus(metric: SystemMetric) {
-  if (metric.tone === 'success') return 'success'
-  if (metric.tone === 'warning') return 'warning'
-  if (metric.tone === 'danger') return 'exception'
-  return undefined
+function progressStatus(percent?: number) {
+  if (typeof percent !== 'number') return undefined
+  if (percent >= 80) return 'exception'
+  if (percent >= 60) return 'warning'
+  return 'success'
 }
 
 function goTerminal() {
@@ -85,11 +123,11 @@ onMounted(loadNodeDetail)
       <div class="title-row">
         <div class="title-copy">
           <h1>{{ node?.Name || `节点 #${nodeId}` }}</h1>
-          <p class="muted">{{ node?.Description || '开发节点概览与运行状态' }}</p>
+          <p class="muted">{{ node?.Description || '节点连接信息与系统概览' }}</p>
         </div>
 
         <div class="title-actions">
-          <el-button :icon="Refresh" circle :loading="loading" @click="loadNodeDetail" />
+          <el-button :icon="Refresh" circle :loading="loading || overviewLoading" @click="loadNodeDetail" />
           <el-button :icon="Edit" @click="editVisible = true">编辑节点</el-button>
           <el-button :icon="VideoPlay" type="primary" @click="goTerminal">打开终端</el-button>
         </div>
@@ -112,60 +150,99 @@ onMounted(loadNodeDetail)
       </article>
 
       <article class="summary-panel">
-        <div class="summary-kicker">UUID</div>
-        <div class="summary-title mono small">{{ node.UUID }}</div>
-        <div class="summary-sub muted">用于资产标识与后续能力扩展</div>
+        <div class="summary-kicker">主机信息</div>
+        <div class="summary-title">{{ overview?.hostname || '-' }}</div>
+        <div class="summary-sub muted">{{ overview?.os || '等待采集系统信息' }}</div>
       </article>
 
       <article class="summary-panel">
-        <div class="summary-kicker">最近同步</div>
+        <div class="summary-kicker">最近采集</div>
         <div class="summary-title">{{ overview?.lastReportAt || '等待采集' }}</div>
-        <div class="summary-sub muted">当前仍为前端模拟数据</div>
+        <div class="summary-sub muted">本页数据由后端通过 SSH 实时采集</div>
       </article>
     </div>
 
     <el-tabs v-model="activeTab" class="detail-tabs">
       <el-tab-pane label="概览" name="overview">
         <div v-loading="overviewLoading" class="overview-layout">
-          <section class="content-block" v-if="node">
-            <div class="block-header">
-              <div>
-                <h2>连接配置</h2>
-                <p class="muted">这里展示你后端真实返回的节点详情。</p>
+          <div class="split-layout" v-if="node">
+            <section class="content-block">
+              <div class="block-header">
+                <div>
+                  <h2>连接配置</h2>
+                  <p class="muted">节点资产与连接参数。</p>
+                </div>
+                <el-icon class="block-icon"><Monitor /></el-icon>
               </div>
-              <el-icon class="block-icon"><Monitor /></el-icon>
-            </div>
 
-            <div class="system-grid">
-              <div class="system-item">
-                <span class="muted">名称</span>
-                <strong>{{ node.Name }}</strong>
+              <div class="system-grid compact-grid">
+                <div class="system-item">
+                  <span class="muted">名称</span>
+                  <strong>{{ node.Name }}</strong>
+                </div>
+                <div class="system-item">
+                  <span class="muted">主机地址</span>
+                  <strong>{{ node.Host }}</strong>
+                </div>
+                <div class="system-item">
+                  <span class="muted">端口</span>
+                  <strong>{{ node.Port }}</strong>
+                </div>
+                <div class="system-item">
+                  <span class="muted">SSH 用户</span>
+                  <strong>{{ node.SshUser }}</strong>
+                </div>
+                <div class="system-item">
+                  <span class="muted">认证方式</span>
+                  <strong>{{ authText }}</strong>
+                </div>
+                <div class="system-item">
+                  <span class="muted">UUID</span>
+                  <strong class="mono">{{ node.UUID }}</strong>
+                </div>
               </div>
-              <div class="system-item">
-                <span class="muted">主机地址</span>
-                <strong>{{ node.Host }}</strong>
-              </div>
-              <div class="system-item">
-                <span class="muted">端口</span>
-                <strong>{{ node.Port }}</strong>
-              </div>
-              <div class="system-item">
-                <span class="muted">SSH 用户</span>
-                <strong>{{ node.SshUser }}</strong>
-              </div>
-              <div class="system-item">
-                <span class="muted">认证方式</span>
-                <strong>{{ authText }}</strong>
-              </div>
-              <div class="system-item">
-                <span class="muted">创建时间</span>
-                <strong>{{ node.CreatedAt }}</strong>
-              </div>
-            </div>
-          </section>
+            </section>
 
-          <section class="metric-grid" v-if="overview">
-            <article v-for="metric in overview.metrics" :key="metric.label" class="metric-panel">
+            <section class="content-block" v-if="overview">
+              <div class="block-header">
+                <div>
+                  <h2>系统信息</h2>
+                  <p class="muted">实时读取远程 Linux 主机状态。</p>
+                </div>
+                <el-icon class="block-icon"><Connection /></el-icon>
+              </div>
+
+              <div class="system-grid compact-grid">
+                <div class="system-item">
+                  <span class="muted">主机名</span>
+                  <strong>{{ overview.hostname || '-' }}</strong>
+                </div>
+                <div class="system-item">
+                  <span class="muted">操作系统</span>
+                  <strong>{{ overview.os || '-' }}</strong>
+                </div>
+                <div class="system-item">
+                  <span class="muted">内核</span>
+                  <strong>{{ overview.kernel || '-' }}</strong>
+                </div>
+                <div class="system-item">
+                  <span class="muted">架构</span>
+                  <strong>{{ overview.architecture || '-' }}</strong>
+                </div>
+                <div class="system-item">
+                  <span class="muted">运行时长</span>
+                  <strong>{{ overview.uptime || '-' }}</strong>
+                </div>
+                <div class="system-item">
+                  <span class="muted">平均负载</span>
+                  <strong>{{ overview.loadAverage || '-' }}</strong>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <section class="metric-grid" v-if="metricCards.length > 0">
+            <article v-for="metric in metricCards" :key="metric.label" class="metric-panel">
               <div class="metric-topline">
                 <span class="muted">{{ metric.label }}</span>
                 <strong>{{ metric.value }}</strong>
@@ -174,57 +251,36 @@ onMounted(loadNodeDetail)
               <el-progress
                 v-if="typeof metric.percent === 'number'"
                 :percentage="metric.percent"
-                :status="metricStatus(metric)"
+                :status="progressStatus(metric.percent)"
                 :show-text="false"
                 :stroke-width="8"
               />
             </article>
           </section>
 
-          <div class="split-layout" v-if="overview">
-            <section class="content-block">
-              <div class="block-header">
-                <div>
-                  <h2>挂载点</h2>
-                  <p class="muted">现在先用模拟数据占位，之后可以接真实采集。</p>
+          <section class="content-block" v-if="overview">
+            <div class="block-header">
+              <div>
+                <h2>挂载点</h2>
+                <p class="muted">来自远程节点的真实磁盘挂载信息。</p>
+              </div>
+              <el-icon class="block-icon"><FolderOpened /></el-icon>
+            </div>
+
+            <div v-if="overview.mounts.length > 0" class="mount-list">
+              <article v-for="mount in overview.mounts" :key="mount.name" class="list-row">
+                <div class="list-copy">
+                  <strong class="mono">{{ mount.name }}</strong>
+                  <span class="muted">{{ mount.fileSystem }} · {{ mount.used }} / {{ mount.size }}</span>
                 </div>
-                <el-icon class="block-icon"><FolderOpened /></el-icon>
-              </div>
-
-              <div class="mount-list">
-                <article v-for="mount in overview.mounts" :key="mount.name" class="list-row">
-                  <div class="list-copy">
-                    <strong class="mono">{{ mount.name }}</strong>
-                    <span class="muted">{{ mount.detail }}</span>
-                  </div>
-                  <div class="list-side">
-                    <strong>{{ mount.usage }}</strong>
-                    <el-progress :percentage="mount.percent" :show-text="false" :stroke-width="8" />
-                  </div>
-                </article>
-              </div>
-            </section>
-
-            <section class="content-block">
-              <div class="block-header">
-                <div>
-                  <h2>服务状态</h2>
-                  <p class="muted">也还是前端模拟，让布局先稳定下来。</p>
+                <div class="list-side">
+                  <strong>{{ mount.usage }}</strong>
+                  <el-progress :percentage="mount.percent" :show-text="false" :stroke-width="8" />
                 </div>
-                <el-icon class="block-icon"><TrendCharts /></el-icon>
-              </div>
-
-              <div class="service-list">
-                <article v-for="service in overview.services" :key="service.name" class="list-row service-row">
-                  <div class="list-copy">
-                    <strong class="mono">{{ service.name }}</strong>
-                    <span class="muted">{{ service.note }}</span>
-                  </div>
-                  <el-tag :type="service.tone" effect="plain">{{ service.status }}</el-tag>
-                </article>
-              </div>
-            </section>
-          </div>
+              </article>
+            </div>
+            <el-empty v-else description="暂无挂载点信息" />
+          </section>
         </div>
       </el-tab-pane>
 
@@ -232,7 +288,7 @@ onMounted(loadNodeDetail)
         <section class="content-block placeholder-block">
           <el-icon class="placeholder-icon"><Monitor /></el-icon>
           <h2>终端入口</h2>
-          <p class="muted">你现在已经把 WebSSH 跑通了，这里保留节点内的主入口。</p>
+          <p class="muted">继续使用你现在已经打通的 WebSSH 终端。</p>
           <el-button :icon="VideoPlay" type="primary" @click="goTerminal">进入终端</el-button>
         </section>
       </el-tab-pane>
@@ -321,11 +377,6 @@ onMounted(loadNodeDetail)
   line-height: 1.4;
 }
 
-.summary-title.small {
-  font-size: 14px;
-  line-height: 1.6;
-}
-
 .summary-sub {
   margin-top: 8px;
 }
@@ -379,6 +430,10 @@ onMounted(loadNodeDetail)
   gap: 16px;
 }
 
+.compact-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .system-item,
 .metric-panel {
   padding: 16px;
@@ -423,8 +478,7 @@ onMounted(loadNodeDetail)
   gap: 16px;
 }
 
-.mount-list,
-.service-list {
+.mount-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -453,10 +507,6 @@ onMounted(loadNodeDetail)
   align-items: flex-end;
 }
 
-.service-row {
-  align-items: flex-start;
-}
-
 .placeholder-block {
   display: flex;
   min-height: 320px;
@@ -471,7 +521,8 @@ onMounted(loadNodeDetail)
   .summary-grid,
   .system-grid,
   .metric-grid,
-  .split-layout {
+  .split-layout,
+  .compact-grid {
     grid-template-columns: 1fr;
   }
 }

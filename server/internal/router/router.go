@@ -28,6 +28,7 @@ func RouterInit(authHandler handler.AuthHandler, nodeHandler handler.NodeHandler
 		//node相关的路由
 		private.POST("node", nodeHandler.SaveNode)
 		private.POST("getNode", nodeHandler.GetNodeById)
+		private.POST("getNodeOverview", nodeHandler.GetNodeOverview)
 		private.GET("nodes", nodeHandler.GetNodes)
 		private.POST("updateNode", nodeHandler.UpdateNode)
 

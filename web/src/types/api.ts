@@ -66,32 +66,27 @@ export interface UpdateNodePayload {
   Status?: number
 }
 
-export interface SystemMetric {
-  label: string
-  value: string
-  detail: string
-  percent?: number
-  tone?: 'default' | 'success' | 'warning' | 'danger'
-}
-
 export interface NodeOverview {
+  hostname: string
   os: string
   kernel: string
   architecture: string
   uptime: string
   loadAverage: string
+  cpuPercent: number
+  memoryTotalMB: number
+  memoryUsedMB: number
+  memoryPercent: number
+  diskTotal: string
+  diskUsed: string
+  diskPercent: number
   lastReportAt: string
-  metrics: SystemMetric[]
   mounts: Array<{
     name: string
+    fileSystem: string
+    size: string
+    used: string
     usage: string
-    detail: string
     percent: number
-  }>
-  services: Array<{
-    name: string
-    status: string
-    note: string
-    tone: 'success' | 'warning' | 'info'
   }>
 }

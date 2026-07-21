@@ -28,7 +28,7 @@ func main() {
 	nodeService := service.NewNodeService(nodeRepo)
 	sshService := service.NewSSHService(nodeRepo)
 	authHandler := handler.NewAuthHandler(userService, Config.Jwt.Secret, Config.Jwt.ExpireHour)
-	nodeHandler := handler.NewNodeHandler(nodeService)
+	nodeHandler := handler.NewNodeHandler(nodeService, sshService)
 	sshHandler := handler.NewSSHHandler(sshService)
 	r := router.RouterInit(authHandler, nodeHandler, sshHandler)
 	r.Run(":" + Config.Server.Port)
